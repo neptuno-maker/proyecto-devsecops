@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Base de datos PostgreSQL en el Runner de GitHub
       postgres:
         image: postgres:15
         env:
@@ -23,38 +22,37 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     steps:
-      # 1. Clonar el repositorio
       - name: Descargar Código Fuente
         uses: actions/checkout@v4
 
-      # 2. Configurar entorno Python
       - name: Configurar Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # 3. Instalar dependencias del orquestador y herramientas de seguridad
-      - name: Instalar Herramientas DevSecOps
+      - name: Instalar Dependencias y Herramientas DevSecOps
         run: |
           python -m pip install --upgrade pip
           pip install -r 2_backend_orquestador/requirements.txt
 
-      # 4. Inicializar esquema de Base de Datos en PostgreSQL
-      - name: Inicializar Tablas en Base de Datos
+      - name: Esperar e Inicializar Base de Datos PostgreSQL
         env:
           PGPASSWORD: password123
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
-          psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init.sql
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Esperando a que PostgreSQL esté listo..."
+            sleep 2
+          done
+          psql -h localhost -p 5432 -U postgres -d devsecops_db -f 1_infraestructura/init.sql
 
-      # 5. Ejecutar Pipeline DevSecOps (SAST, SCA, DAST y Quality Gate)
-      - name: Ejecutar Orquestador DevSecOps
+      - name: Ejecutar Pipeline DevSecOps (SAST, SCA, DAST)
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -66,12 +64,11 @@ jobs:
           cd 2_backend_orquestador
           python orquestador.py
 
-      # 6. Publicar reporte de auditoría como artefacto descargable en GitHub
-      - name: Guardar Artefacto de Auditoría
+      - name: Subir Artefactos de Auditoría
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: devsecops-reports
+          name: devsecops-audit-reports
           path: |
             2_backend_orquestador/*.txt
             2_backend_orquestador/app_prueba/
