@@ -1,0 +1,55 @@
+services:
+  database:
+    image: postgres:15
+    container_name: postgres_devsecops
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: devsecops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./1_infraestructura/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - devsecops-network
+
+  backend:
+    build:
+      context: ./2_backend_orquestador
+      dockerfile: Dockerfile
+    container_name: api_devsecops
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: database
+      DB_USER: postgres
+      DB_PASSWORD: password123
+      DB_NAME: devsecops_db
+      DB_PORT: 5432
+    depends_on:
+      - database
+    networks:
+      - devsecops-network
+
+  frontend:
+    build:
+      context: ./3_frontend_dashboard
+      dockerfile: Dockerfile
+    container_name: dashboard_devsecops
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - devsecops-network
+
+volumes:
+  db_data:
+
+networks:
+  devsecops-network:
+    driver: bridge

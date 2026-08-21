@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS EJECUCION (
+    id_ejecucion SERIAL PRIMARY KEY,
+    fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado_final VARCHAR(50) NOT NULL,
+    commit_hash VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS VULNERABILIDAD (
+    id_vulnerabilidad SERIAL PRIMARY KEY,
+    id_ejecucion INT REFERENCES EJECUCION(id_ejecucion) ON DELETE CASCADE,
+    herramienta_origen VARCHAR(50) NOT NULL,
+    tipo_vulnerabilidad VARCHAR(100) NOT NULL,
+    severidad VARCHAR(20) NOT NULL,
+    archivo_afectado TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ALERTA_NOTIFICADA (
+    id_alerta SERIAL PRIMARY KEY,
+    id_ejecucion INT REFERENCES EJECUCION(id_ejecucion) ON DELETE CASCADE,
+    fecha_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    canal_envio VARCHAR(50) NOT NULL,
+    destinatario VARCHAR(100) NOT NULL
+);

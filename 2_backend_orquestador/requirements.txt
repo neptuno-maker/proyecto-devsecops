@@ -1,0 +1,6 @@
+psycopg[binary]==3.2.4
+requests==2.32.3
+Flask==3.0.3
+Flask-Cors==4.0.1
+bandit==1.7.9
+pip-audit==2.7.3
