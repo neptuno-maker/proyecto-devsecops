@@ -170,5 +170,10 @@ def ejecutar_pipeline(commit_hash=None):
     conn.close()
     print("[+] Pipeline completado exitosamente.\n")
 
+    # Si fue bloqueado, forzar error en CI/CD para impedir el merge del PR
+    if estado_final == "Bloqueado":
+        import sys
+        sys.exit(1)
+
 if __name__ == "__main__":
     ejecutar_pipeline()
