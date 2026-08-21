@@ -103,6 +103,26 @@ def ejecutar_pipeline(commit_hash=None):
         conn = psycopg.connect(**DB_CONFIG)
         cur = conn.cursor()
         print("[+] Conexión exitosa con PostgreSQL.")
+
+        # Crear esquema si no existe (autocontenido para CI/CD)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS EJECUCION (
+                id_ejecucion SERIAL PRIMARY KEY,
+                fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                estado_final VARCHAR(50) NOT NULL,
+                commit_hash VARCHAR(100)
+            );
+            CREATE TABLE IF NOT EXISTS VULNERABILIDAD (
+                id_vulnerabilidad SERIAL PRIMARY KEY,
+                id_ejecucion INT REFERENCES EJECUCION(id_ejecucion) ON DELETE CASCADE,
+                herramienta_origen VARCHAR(50) NOT NULL,
+                tipo_vulnerabilidad VARCHAR(255) NOT NULL,
+                severidad VARCHAR(50) NOT NULL,
+                archivo_afectado VARCHAR(255)
+            );
+        """)
+        conn.commit()
+        print("[+] Esquema de base de datos verificado/creado.")
     except Exception as e:
         print(f"[-] Error al conectar con la base de datos: {e}")
         return
