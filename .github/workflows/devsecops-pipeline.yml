@@ -41,17 +41,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r 2_backend_orquestador/requirements.txt
 
-      - name: Esperar e Inicializar Base de Datos PostgreSQL
-        env:
-          PGPASSWORD: password123
-        run: |
-          sudo apt-get update && sudo apt-get install -y postgresql-client
-          until pg_isready -h localhost -p 5432 -U postgres; do
-            echo "Esperando a que PostgreSQL esté listo..."
-            sleep 2
-          done
-          psql -h localhost -p 5432 -U postgres -d devsecops_db -f 1_infraestructura/init.sql
-
       - name: Ejecutar Pipeline DevSecOps (SAST, SCA, DAST)
         env:
           DB_HOST: localhost
