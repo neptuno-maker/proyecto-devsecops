@@ -1,40 +1,54 @@
-# Plataforma Automatizada de Quality Gate y Pipeline DevSecOps
+# Plataforma Automatizada DevSecOps & Quality Gate
 
-Este proyecto implementa una solución integral de DevSecOps orientada a la seguridad continua en el ciclo de vida del software (CI/CD). Automatiza la ejecución de análisis estático (SAST) y dinámico (DAST), evalúa políticas de bloqueo basadas en severidad y centraliza métricas mediante una base de datos relacional y un dashboard en tiempo real.
+[![Pipeline DevSecOps & Quality Gate](https://github.com/neptuno-maker/proyecto-devsecops/actions/workflows/devsecops-pipeline.yml/badge.svg)](https://github.com/neptuno-maker/proyecto-devsecops/actions/workflows/devsecops-pipeline.yml)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2015-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Python](https://img.shields.io/badge/Orchestrator-Python%203.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![React](https://img.shields.io/badge/Dashboard-React%20%2B%20Tailwind-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+
+Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, persistir y visualizar el estado de seguridad del código fuente y sus dependencias en un ciclo de Integración Continua (CI/CD).
 
 ---
 
 ## Arquitectura del Sistema
 
-El sistema está dividido en tres capas desacopladas:
-
-1. **Infraestructura (`1_infraestructura`):**
-   - Base de datos relacional **PostgreSQL 15** desplegada en contenedor Docker.
-   - Persistencia de datos mediante volúmenes Docker (`db_data`).
-   - Esquema normalizado compuesto por las entidades `EJECUCION`, `VULNERABILIDAD` y `ALERTA_NOTIFICADA`.
-
-2. **Backend & Orquestador (`2_backend_orquestador`):**
-   - **Orquestador DevSecOps (`orquestador.py`):** Ejecuta escaneos reales con el analizador estático **Bandit**, simula pruebas dinámicas (DAST), audita el Quality Gate y despacha webhooks ante eventos críticos.
-   - **API REST (`api.py`):** Servicio web construido en **Flask** con soporte CORS que expone endpoints JSON (`/api/resumen`, `/api/ejecuciones`, `/api/vulnerabilidades`).
-
-3. **Frontend Dashboard (`3_frontend_dashboard`):**
-   - Interfaz gráfica moderna construida con **React** y **Vite**.
-   - Visualización analítica interactiva mediante **Recharts** (distribución de severidad y comparativa SAST vs. DAST).
-   - Historial de ejecuciones y trazabilidad de commits en vivo.
+[ Git Push / PR ]
+│
+▼
+[ GitHub Actions Runner ]
+├── 1. SAST Engine (Bandit) ───────> [ CWE / Inyecciones ]
+├── 2. SCA Engine (pip-audit) ────> [ CVE / Vulnerabilidades ]
+├── 3. Quality Gate Evaluator ────> [ Bloqueo / Aprobación ]
+└── 4. PostgreSQL (Persistencia) ──> [ Histórico de Auditorías ]
+│
+▼
+[ Frontend Dashboard (React) ] ─────> [ Métricas, Filtros, Exportación PDF/CSV ]
 
 ---
 
-## Política de Quality Gate
+## Capacidades Principales
 
-- **Criterio de Bloqueo:** Si el pipeline detecta $\ge 1$ vulnerabilidad de severidad **Crítica** o **Alta**, el despliegue a producción se bloquea inmediatamente.
-- **Notificación Automática:** Ante cualquier bloqueo, se emite un payload HTTP POST estructurado vía Webhook con el detalle de los archivos afectados y tipos de fallo (CWE).
-- **Criterio de Aprobación:** Únicamente se autoriza el despliegue cuando los fallos detectados son de severidad Media, Baja o Inexistentes.
+* **Análisis SAST (Static Application Security Testing):** Detección estática de vulnerabilidades en código Python mediante Bandit.
+* **Análisis SCA (Software Composition Analysis):** Identificación automatizada de vulnerabilidades y exposiciones conocidas (CVE) en librerías externas mediante `pip-audit`.
+* **Quality Gate Automatizado:** Evaluación basada en severidad. Si existen fallos de severidad **HIGH** o **CRITICAL**, el runner emite código de salida de error (`exit 1`) bloqueando Pull Requests automáticamente.
+* **Persistencia Relacional:** Almacenamiento estructurado de auditorías y hallazgos en base de datos PostgreSQL 15.
+* **Dashboard Interactivo:** Panel de visualización con métricas, gráficos reactivos, asistente de remediación contextual y exportación a PDF/CSV.
 
 ---
 
-## Guía de Despliegue Local
+## Estructura del Repositorio
 
-### 1. Iniciar Base de Datos (Docker)
-```bash
-cd 1_infraestructura
-docker compose up -d
+```text
+├── .github/workflows/
+│   └── devsecops-pipeline.yml     # Flujo CI/CD automatizado en GitHub Actions
+├── 1_infraestructura/
+│   ├── docker-compose.yml         # Contenedores de base de datos y orquestacion
+│   └── init.sql                   # Esquema de tablas relacionales
+├── 2_backend_orquestador/
+│   ├── app_prueba/                # Codigo de prueba para analisis de seguridad
+│   ├── orquestador.py             # Motor de analisis SAST, SCA y Quality Gate
+│   ├── api.py                     # API REST para alimentar el Dashboard
+│   └── requirements.txt           # Librerias y dependencias del backend
+├── 3_frontend_dashboard/
+│   ├── src/                       # Aplicacion React (metricas, graficos, modales)
+│   └── package.json               # Dependencias del cliente web
+└── README.md                      # Documentacion del proyecto
