@@ -15,6 +15,6 @@ def procesar_datos_json(payload_str: str):
     except json.JSONDecodeError:
         return {}
 
-# Nueva funcion insegura para activar el Quality Gate:
+# Correccion aplicada por el desarrollador:
 def consultar_sistema_inseguro(param: str):
-    return subprocess.run(f"ls -la {param}", shell=True, capture_output=True)
+    return subprocess.run(["ls", "-la", str(param)], capture_output=True, text=True)
