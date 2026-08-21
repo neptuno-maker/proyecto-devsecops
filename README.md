@@ -37,7 +37,6 @@ Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, pe
 
 ## Estructura del Repositorio
 
-```text
 ├── .github/workflows/
 │   └── devsecops-pipeline.yml     # Flujo CI/CD automatizado en GitHub Actions
 ├── 1_infraestructura/
@@ -52,3 +51,48 @@ Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, pe
 │   ├── src/                       # Aplicacion React (metricas, graficos, modales)
 │   └── package.json               # Dependencias del cliente web
 └── README.md                      # Documentacion del proyecto
+
+---
+
+## Estructura del Repositorio
+
+1. Iniciar Base de Datos
+
+cd 1_infraestructura
+docker compose up -d
+
+2. Iniciar API Backend y Orquestador
+
+cd ../2_backend_orquestador
+pip install -r requirements.txt
+python api.py
+
+3. Iniciar Dashboard Frontend
+
+cd ../3_frontend_dashboard
+npm install
+npm run dev
+
+---
+
+## Acceso web
+
+http://localhost:5173
+
+---
+
+## Criterios del Quality Gate
+
+Nivel de Severidad  | Criterio              | Comportamiento CI/CD
+CRITICAL / HIGH     | Mayor a 0 fallos      | BLOQUEADO: Cancela la integración y bloquea el merge en GitHub
+MEDIUM / LOW        | Registro informativo  | APROBADO: Permite el despliegue con advertencias
+
+---
+
+## Guarda los cambios con **`Ctrl + S`**.
+
+---
+
+## Subir la actualización a GitHub
+
+---
