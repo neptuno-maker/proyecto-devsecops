@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { obtenerGuiaRemediacion } from './remediationKnowledge';
 import './App.css';
+import Login from './Login';
 
 const SEVERITY_COLORS = {
   Crítica: '#f85149',
@@ -35,6 +36,15 @@ function App() {
 
   // Estado para el Modal de Remediación
   const [vulnerabilidadSeleccionada, setVulnerabilidadSeleccionada] = useState(null);
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState(
+    sessionStorage.getItem('devsecops_user') || null
+  );
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('devsecops_token');
+    sessionStorage.removeItem('devsecops_user');
+    setUsuarioAutenticado(null);
+  };
 
   useEffect(() => {
     fetch('http://localhost:5000/api/resumen')
@@ -110,6 +120,10 @@ function App() {
 
   const guiaActual = vulnerabilidadSeleccionada ? obtenerGuiaRemediacion(vulnerabilidadSeleccionada) : null;
 
+  if (!usuarioAutenticado) {
+    return <Login onLoginSuccess={(usr) => setUsuarioAutenticado(usr)} />;
+  }
+  
   return (
     <div className="dashboard-container">
       <header className="header">
@@ -118,8 +132,27 @@ function App() {
           <p className="subtitle">Monitoreo Continuo del Pipeline de Seguridad y Quality Gate</p>
         </div>
         <div className="export-actions no-print">
-          <button className="btn-export btn-csv" onClick={exportarCSV}>📥 Exportar CSV</button>
-          <button className="btn-export btn-pdf" onClick={() => window.print()}>📄 Imprimir PDF</button>
+          <button className="btn-export btn-csv" onClick={exportarCSV}>
+            📥 Exportar CSV
+          </button>
+          <button className="btn-export btn-pdf" onClick={() => window.print()}>
+          📄 Imprimir / Guardar PDF
+        </button>
+          <button 
+            onClick={handleLogout}
+            style={{
+              backgroundColor: '#21262d',
+              border: '1px solid #30363d',
+              color: '#c9d1d9',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}
+          >
+            Cerrar Sesión ({usuarioAutenticado})
+          </button>
         </div>
       </header>
 

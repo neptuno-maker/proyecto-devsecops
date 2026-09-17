@@ -1,10 +1,12 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg
 import os
+import jwt
+import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
@@ -13,6 +15,10 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER", "postgres"),
     "password": os.getenv("DB_PASSWORD", "password123")
 }
+
+JWT_SECRET = "devsecops_super_secret_key_2026"
+ADMIN_USER = "admin"
+ADMIN_PASS = "admin123"
 
 def inicializar_bd():
     """Crea las tablas automáticamente si la base de datos es nueva."""
@@ -109,6 +115,25 @@ def obtener_resumen():
         return jsonify(resumen)
     except Exception as e:
         return jsonify({"Crítica": 0, "Alta": 0, "Media": 0, "Baja": 0}), 500
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json() or {}
+    username = data.get('username')
+    password = data.get('password')
+
+    if username == ADMIN_USER and password == ADMIN_PASS:
+        token = jwt.encode(
+            {
+                'user': username,
+                'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)
+            },
+            JWT_SECRET,
+            algorithm="HS256"
+        )
+        return jsonify({"token": token, "user": username}), 200
+
+    return jsonify({"error": "Credenciales inválidas"}), 401
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
