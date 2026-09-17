@@ -38,7 +38,7 @@ jobs:
       - name: Inicializar esquema en base de datos
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
-          PGPASSWORD=password123 psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init.sql
+          PGPASSWORD=password123 psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init_db.sql
 
       - name: Instalar dependencias del orquestador
         run: |
