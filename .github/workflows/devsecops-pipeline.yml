@@ -1,64 +1,55 @@
-name: Pipeline DevSecOps & Quality Gate
+name: DevSecOps Pipeline CI/CD
 
 on:
   push:
-    branches: [ "main", "master", "develop" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
 
 jobs:
-  security-audit:
-    name: Análisis SAST, SCA y Evaluación Quality Gate
+  security-analysis:
+    name: Escaneo de Seguridad y Quality Gate
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15-alpine
         env:
+          POSTGRES_DB: devsecops_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password123
-          POSTGRES_DB: devsecops_db
         ports:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
-          --health-interval 5s
+          --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 5
 
     steps:
-      - name: Descargar Código Fuente
+      - name: Descargar repositorio (Checkout)
         uses: actions/checkout@v4
 
-      - name: Configurar Python 3.11
+      - name: Configurar entorno Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
-      - name: Instalar Dependencias y Herramientas DevSecOps
+      - name: Inicializar esquema en base de datos
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          PGPASSWORD=password123 psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init.sql
+
+      - name: Instalar dependencias del orquestador
         run: |
           python -m pip install --upgrade pip
           pip install -r 2_backend_orquestador/requirements.txt
+          pip install bandit
 
-      - name: Ejecutar Pipeline DevSecOps (SAST, SCA, DAST)
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: devsecops_db
-          DB_USER: postgres
-          DB_PASSWORD: password123
-          COMMIT_HASH: ${{ github.sha }}
+      - name: Ejecutar análisis estático (SAST) con Bandit
         run: |
-          cd 2_backend_orquestador
-          python orquestador.py
+          bandit -r 2_backend_orquestador/ -f json -o sast_report.json || true
 
-      - name: Subir Artefactos de Auditoría
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: devsecops-audit-reports
-          path: |
-            2_backend_orquestador/*.txt
-            2_backend_orquestador/app_prueba/
-          retention-days: 7
+      - name: Ejecutar Orquestador y Evaluar Quality Gate
+        run: |
+          python 2_backend_orquestador/orquestador.py
