@@ -153,17 +153,20 @@ def ejecutar_pipeline(commit_hash=None):
                 id_ejecucion SERIAL PRIMARY KEY,
                 fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 estado_final VARCHAR(50) NOT NULL,
-                commit_hash VARCHAR(100)
+                commit_hash TEXT
             );
             CREATE TABLE IF NOT EXISTS VULNERABILIDAD (
                 id_vulnerabilidad SERIAL PRIMARY KEY,
                 id_ejecucion INT REFERENCES EJECUCION(id_ejecucion) ON DELETE CASCADE,
                 herramienta_origen VARCHAR(50) NOT NULL,
-                tipo_vulnerabilidad VARCHAR(255) NOT NULL,
+                tipo_vulnerabilidad TEXT NOT NULL,
                 severidad VARCHAR(50) NOT NULL,
-                archivo_afectado VARCHAR(255)
+                archivo_afectado TEXT
             );
+            ALTER TABLE VULNERABILIDAD ALTER COLUMN tipo_vulnerabilidad TYPE TEXT;
+            ALTER TABLE VULNERABILIDAD ALTER COLUMN archivo_afectado TYPE TEXT;
         """)
+        
         conn.commit()
         print("[+] Esquema de base de datos verificado/creado.")
     except Exception as e:
