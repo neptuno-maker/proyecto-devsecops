@@ -50,6 +50,28 @@ jobs:
         run: |
           bandit -r 2_backend_orquestador/ -f json -o sast_report.json || true
 
+      - name: Iniciar servicio web para pruebas dinámicas (DAST Target)
+        run: |
+          # Levantar la API en segundo plano
+          python 2_backend_orquestador/api.py &
+          # Esperar a que el puerto 5000 responda
+          timeout 30 bash -c 'until echo > /dev/tcp/127.0.0.1/5000; do sleep 1; done'
+          echo "Servicio activo en http://127.0.0.1:5000"
+
+      - name: Ejecutar análisis dinámico (DAST) con OWASP ZAP
+        run: |
+          # Crear directorio para almacenar el reporte generado por el contenedor
+          mkdir -p zap_report
+          chmod 777 zap_report
+          
+          # Escaneo Baseline contra el servicio levantado en el runner
+          docker run --rm --network="host" -v $(pwd)/zap_report:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://127.0.0.1:5000 -J dast_report.json -I || true
+
+          # Mover el reporte a la raíz de trabajo
+          cp zap_report/dast_report.json ./dast_report.json || true
+
       - name: Ejecutar Orquestador y Evaluar Quality Gate
         run: |
           python 2_backend_orquestador/orquestador.py

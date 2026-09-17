@@ -56,8 +56,6 @@ def ejecutar_escaneo_sca_real(archivo_req="app_prueba/requirements_vulnerable.tx
             capture_output=True,
             text=True
         )
-        
-        # pip-audit retorna 1 si encuentra vulnerabilidades, pero genera JSON válido
         salida_json = resultado.stdout if resultado.stdout else resultado.stderr
         data = json.loads(salida_json)
         
@@ -73,6 +71,52 @@ def ejecutar_escaneo_sca_real(archivo_req="app_prueba/requirements_vulnerable.tx
         return hallazgos_sca
     except Exception as e:
         print(f"[-] Error al ejecutar pip-audit: {e}")
+        return []
+
+def leer_reporte_dast_real(ruta_reporte="dast_report.json"):
+    """Lee y parsea el reporte JSON generado por OWASP ZAP."""
+    print(f"[*] Verificando reporte DAST (OWASP ZAP) en: {ruta_reporte}...")
+    if not os.path.exists(ruta_reporte):
+        # Fallback a directorio zap_report si no fue movido a la raíz
+        ruta_alt = os.path.join("zap_report", "dast_report.json")
+        if os.path.exists(ruta_alt):
+            ruta_reporte = ruta_alt
+        else:
+            print("[i] No se encontró reporte DAST dinámico. Se asume sin hallazgos DAST.")
+            return []
+
+    try:
+        with open(ruta_reporte, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        hallazgos_dast = []
+        # El formato JSON de OWASP ZAP estructura las alertas dentro de 'site' -> 'alerts'
+        sitios = data.get("site", [])
+        if isinstance(sitios, dict):
+            sitios = [sitios]
+
+        sev_map = {"3": "Alta", "2": "Media", "1": "Baja", "0": "Informativa"}
+
+        for site in sitios:
+            for alert in site.get("alerts", []):
+                risk_code = str(alert.get("riskcode", "1"))
+                severidad = sev_map.get(risk_code, "Baja")
+                
+                # Extraer la URL o endpoint evaluado
+                instances = alert.get("instances", [])
+                uri = instances[0].get("uri") if instances else site.get("@name", "/endpoint")
+
+                hallazgos_dast.append({
+                    "origen": "DAST (OWASP ZAP)",
+                    "tipo": f"{alert.get('alert')}: {alert.get('name', '')}",
+                    "severidad": severidad,
+                    "archivo": uri
+                })
+
+        print(f"[+] DAST procesado: {len(hallazgos_dast)} alertas extraídas de OWASP ZAP.")
+        return hallazgos_dast
+    except Exception as e:
+        print(f"[-] Error al parsear reporte DAST de ZAP: {e}")
         return []
 
 def enviar_notificacion_webhook(id_ejecucion, commit_hash, total_fallos, hallazgos):
@@ -104,7 +148,6 @@ def ejecutar_pipeline(commit_hash=None):
         cur = conn.cursor()
         print("[+] Conexión exitosa con PostgreSQL.")
 
-        # Crear esquema si no existe (autocontenido para CI/CD)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS EJECUCION (
                 id_ejecucion SERIAL PRIMARY KEY,
@@ -135,15 +178,15 @@ def ejecutar_pipeline(commit_hash=None):
     id_ejecucion = cur.fetchone()[0]
     conn.commit()
 
-    # 2. Ejecutar escaneos limpios
+    # 2. Ejecutar escaneos (SAST + SCA + DAST real)
     sast_hallazgos = ejecutar_escaneo_sast_real("app_prueba")
     sca_hallazgos = ejecutar_escaneo_sca_real("app_prueba/requirements_vulnerable.txt")
-    dast_hallazgos = []  # DAST limpio: Se subsanó el XSS en /login
+    dast_hallazgos = leer_reporte_dast_real("dast_report.json")
 
     todos = sast_hallazgos + sca_hallazgos + dast_hallazgos
     contador_criticas_altas = 0
 
-    # 3. Guardar en PostgreSQL (si hubiese algún hallazgo residual)
+    # 3. Guardar en PostgreSQL
     for v in todos:
         if v["severidad"] in ["Crítica", "Alta"]:
             contador_criticas_altas += 1
@@ -153,6 +196,7 @@ def ejecutar_pipeline(commit_hash=None):
             (id_ejecucion, v["origen"], v["tipo"], v["severidad"], v["archivo"])
         )
     conn.commit()
+    print(f"[+] Se almacenaron {len(todos)} vulnerabilidades detectadas en la base de datos.")
 
     # 4. Evaluación Quality Gate
     if contador_criticas_altas > 0:
@@ -170,9 +214,7 @@ def ejecutar_pipeline(commit_hash=None):
     conn.close()
     print("[+] Pipeline completado exitosamente.\n")
 
-    # Si fue bloqueado, forzar error en CI/CD para impedir el merge del PR
     if estado_final == "Bloqueado":
-        import sys
         sys.exit(1)
 
 if __name__ == "__main__":
