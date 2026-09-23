@@ -77,7 +77,6 @@ def leer_reporte_dast_real(ruta_reporte="dast_report.json"):
     """Lee y parsea el reporte JSON generado por OWASP ZAP."""
     print(f"[*] Verificando reporte DAST (OWASP ZAP) en: {ruta_reporte}...")
     if not os.path.exists(ruta_reporte):
-        # Fallback a directorio zap_report si no fue movido a la raíz
         ruta_alt = os.path.join("zap_report", "dast_report.json")
         if os.path.exists(ruta_alt):
             ruta_reporte = ruta_alt
@@ -90,7 +89,6 @@ def leer_reporte_dast_real(ruta_reporte="dast_report.json"):
             data = json.load(f)
 
         hallazgos_dast = []
-        # El formato JSON de OWASP ZAP estructura las alertas dentro de 'site' -> 'alerts'
         sitios = data.get("site", [])
         if isinstance(sitios, dict):
             sitios = [sitios]
@@ -102,7 +100,6 @@ def leer_reporte_dast_real(ruta_reporte="dast_report.json"):
                 risk_code = str(alert.get("riskcode", "1"))
                 severidad = sev_map.get(risk_code, "Baja")
                 
-                # Extraer la URL o endpoint evaluado
                 instances = alert.get("instances", [])
                 uri = instances[0].get("uri") if instances else site.get("@name", "/endpoint")
 
@@ -119,7 +116,19 @@ def leer_reporte_dast_real(ruta_reporte="dast_report.json"):
         print(f"[-] Error al parsear reporte DAST de ZAP: {e}")
         return []
 
-def enviar_notificacion_webhook(id_ejecucion, commit_hash, total_fallos, hallazgos):
+def registrar_alerta_en_bd(cur, id_ejecucion, canal, destinatario):
+    """Inserta registro de trazabilidad en la tabla ALERTA_NOTIFICADA."""
+    try:
+        cur.execute(
+            """INSERT INTO ALERTA_NOTIFICADA (id_ejecucion, canal_envio, destinatario) 
+               VALUES (%s, %s, %s);""",
+            (id_ejecucion, canal, destinatario)
+        )
+        print(f"[+] Trazabilidad: Alerta registrada en BD para ejecución #{id_ejecucion} (Canal: {canal}).")
+    except Exception as e:
+        print(f"[-] Error al registrar en ALERTA_NOTIFICADA: {e}")
+
+def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, total_fallos, hallazgos):
     payload = {
         "evento": "PIPELINE_QUALITY_GATE_FAILED",
         "timestamp": datetime.datetime.now().isoformat(),
@@ -132,6 +141,12 @@ def enviar_notificacion_webhook(id_ejecucion, commit_hash, total_fallos, hallazg
         if WEBHOOK_URL and "http" in WEBHOOK_URL:
             requests.post(WEBHOOK_URL, json=payload, headers={"Content-Type": "application/json"}, timeout=5)
             print("[+] Notificación Webhook enviada al canal de alertas.")
+            
+            # Registro en tabla ALERTA_NOTIFICADA
+            canal = "Webhook HTTP (Webhook.site)"
+            destinatario = "DevSecOps Incident Channel"
+            registrar_alerta_en_bd(cur, id_ejecucion, canal, destinatario)
+            conn.commit()
     except Exception as e:
         print(f"[-] Error al enviar Webhook: {e}")
 
@@ -162,6 +177,13 @@ def ejecutar_pipeline(commit_hash=None):
                 tipo_vulnerabilidad TEXT NOT NULL,
                 severidad VARCHAR(50) NOT NULL,
                 archivo_afectado TEXT
+            );
+            CREATE TABLE IF NOT EXISTS ALERTA_NOTIFICADA (
+                id_alerta SERIAL PRIMARY KEY,
+                id_ejecucion INT REFERENCES EJECUCION(id_ejecucion) ON DELETE CASCADE,
+                fecha_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                canal_envio VARCHAR(50) NOT NULL,
+                destinatario VARCHAR(100) NOT NULL
             );
             ALTER TABLE VULNERABILIDAD ALTER COLUMN tipo_vulnerabilidad TYPE TEXT;
             ALTER TABLE VULNERABILIDAD ALTER COLUMN archivo_afectado TYPE TEXT;
@@ -205,7 +227,7 @@ def ejecutar_pipeline(commit_hash=None):
     if contador_criticas_altas > 0:
         estado_final = "Bloqueado"
         print(f"\n[!] Quality Gate: BLOQUEADO ({contador_criticas_altas} fallos severos detectados).")
-        enviar_notificacion_webhook(id_ejecucion, commit_hash, contador_criticas_altas, todos)
+        enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, contador_criticas_altas, todos)
     else:
         estado_final = "Aprobado"
         print("\n[V] Quality Gate: APROBADO (0 vulnerabilidades críticas/altas encontradas). Despliegue permitido.")
