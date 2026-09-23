@@ -24,3 +24,8 @@ import subprocess
 def test_vulnerabilidad(cmd):
     # Vulnerabilidad B602 detectada por Bandit
     subprocess.run(cmd, shell=True)
+
+def ejecutar_comando_remoto_inseguro(comando_usuario: str):
+    import subprocess
+    # Bandit detecta shell=True en subprocess como severidad HIGH (B602)
+    return subprocess.Popen(comando_usuario, shell=True, stdout=subprocess.PIPE).communicate()
