@@ -4,8 +4,9 @@
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2015-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Python](https://img.shields.io/badge/Orchestrator-Python%203.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![React](https://img.shields.io/badge/Dashboard-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+[![Pytest](https://img.shields.io/badge/Testing-Pytest-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
 
-Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, persistir y visualizar el estado de seguridad del código fuente y sus dependencias en un ciclo de Integración Continua (CI/CD).
+Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, persistir y visualizar el estado de seguridad del código fuente, dependencias y servicios web en un ciclo de Integración Continua (CI/CD).
 
 ---
 
@@ -16,44 +17,49 @@ Plataforma integral de seguridad continua (DevSecOps) diseñada para auditar, pe
        │
        ▼
 [ GitHub Actions Runner ]
-├── 1. SAST Engine (Bandit) ───────> [ CWE / Inyecciones ]
-├── 2. SCA Engine (pip-audit) ────> [ CVE / Vulnerabilidades ]
-├── 3. Quality Gate Evaluator ────> [ Bloqueo / Aprobación ]
-└── 4. PostgreSQL (Persistencia) ──> [ Histórico de Auditorías ]
+├── 1. Unit Tests (Pytest) ────────> [ Validación de Módulos ]
+├── 2. SAST Engine (Bandit) ───────> [ CWE / Inyecciones en Código ]
+├── 3. SCA Engine (pip-audit) ────> [ CVE / Vulnerabilidades en Librerías ]
+├── 4. DAST Engine (OWASP ZAP) ────> [ Detección Dinámica en Endpoints ]
+├── 5. Quality Gate Evaluator ────> [ Bloqueo / Aprobación Autónoma ]
+└── 6. PostgreSQL (Persistencia) ──> [ Histórico de Auditorías ]
        │
        ▼
 [ Frontend Dashboard (React) ] ─────> [ Métricas, Filtros, Exportación PDF/CSV ]
 ```
----
 
 ## Capacidades Principales
 
-Análisis SAST (Static Application Security Testing): Detección estática de vulnerabilidades en código Python mediante Bandit.
+Pruebas Unitarias Automatizadas: Verificación funcional previa al despliegue mediante pytest para garantizar la estabilidad del motor orquestador y parsers de auditoría.
+
+Análisis SAST (Static Application Security Testing): Detección estática temprana de fallos de seguridad en código Python mediante Bandit.
 
 Análisis SCA (Software Composition Analysis): Identificación automatizada de vulnerabilidades y exposiciones conocidas (CVE) en librerías externas mediante pip-audit.
 
-Quality Gate Automatizado: Evaluación basada en severidad. Si existen fallos de severidad HIGH o CRITICAL, el runner emite código de salida de error (exit 1) bloqueando Pull Requests automáticamente.
+Análisis DAST (Dynamic Application Security Testing): Simulación de ataques externos en tiempo de ejecución contra la aplicación mediante escaneo dinámico con OWASP ZAP.
 
-Persistencia Relacional: Almacenamiento estructurado de auditorías y hallazgos en base de datos PostgreSQL.
+Quality Gate Automatizado: Evaluación rigurosa basada en umbrales de severidad. Si se detectan fallos clasificados como Alta o Crítica, el pipeline bloquea el ciclo de integración de forma autónoma.
 
-Dashboard Interactivo: Panel de visualización con métricas, gráficos reactivos, asistente de remediación contextual y exportación a PDF/CSV.
+Persistencia Relacional: Almacenamiento estructurado de ejecuciones, hallazgos y alertas en PostgreSQL contenerizado.
 
----
+Dashboard Interactivo: Panel de visualización con autenticación de usuarios, métricas reactivas, gráficas de distribución, historial por commit, asistente de remediación y exportación a PDF/CSV.
 
 ## Estructura del Repositorio
 
 ├── .github/workflows/
 │   └── devsecops-pipeline.yml     # Flujo CI/CD automatizado en GitHub Actions
 ├── 1_infraestructura/
-│   ├── docker-compose.yml         # Contenedores de base de datos y orquestación
-│   └── init_db.sql                # Esquema de tablas relacionales
+│   ├── docker-compose.yml         # Orquestación de base de datos PostgreSQL
+│   └── init_db.sql                # Esquema de persistencia relacional
 ├── 2_backend_orquestador/
-│   ├── app_prueba/                # Código de prueba para análisis de seguridad
-│   ├── orquestador.py             # Motor de análisis SAST, SCA y Quality Gate
-│   ├── api.py                     # API REST para alimentar el Dashboard
-│   └── requirements.txt           # Librerías y dependencias del backend
+│   ├── app_prueba/                # Microservicio para análisis de seguridad
+│   ├── orquestador.py             # Motor lógico de auditoría y Quality Gate
+│   ├── api.py                     # API REST protegida para el Dashboard
+│   └── requirements.txt           # Dependencias del backend
 ├── 3_frontend_dashboard/
-│   ├── src/                       # Aplicación React (métricas, gráficos, modales)
-│   └── package.json               # Dependencias del cliente web
-└── README.md                      # Documentación del proyecto
-
+│   ├── src/                       # Aplicación cliente React (gráficos, filtros, auth)
+│   └── package.json               # Dependencias del frontend
+├── test/
+│   └── test_orquestador.py        # Suite de pruebas unitarias con Pytest
+└── README.md                      # Documentación técnica del proyecto
+```
