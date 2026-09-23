@@ -18,3 +18,9 @@ def procesar_datos_json(payload_str: str):
 # Correccion aplicada por el desarrollador:
 def consultar_sistema_inseguro(param: str):
     return subprocess.run(["ls", "-la", str(param)], capture_output=True, text=True)
+
+import subprocess
+
+def test_vulnerabilidad(cmd):
+    # Vulnerabilidad B602 detectada por Bandit
+    subprocess.run(cmd, shell=True)
