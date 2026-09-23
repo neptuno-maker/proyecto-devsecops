@@ -222,3 +222,5 @@ def ejecutar_pipeline(commit_hash=None):
 
 if __name__ == "__main__":
     ejecutar_pipeline()
+    
+# Disparar evaluacion de bloqueo
