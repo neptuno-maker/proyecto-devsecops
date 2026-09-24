@@ -140,7 +140,11 @@ def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_fin
     criticas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["crítica", "critica", "critical"])
     altas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["alta", "high"])
     medias = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["media", "medium"])
+    
     bajas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["baja", "low", "informativa"])
+    branch = os.getenv("BRANCH_NAME", "main")
+    msg = os.getenv("COMMIT_MSG", "Sin mensaje").split("\n")[0]
+    short_hash = commit_hash[:7] if commit_hash else "Local"
 
     payload = {
         "username": "DevSecOps Quality Gate",
@@ -148,7 +152,7 @@ def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_fin
         "embeds": [
             {
                 "title": f"{icono} Quality Gate: {estado_final.upper()}",
-                "description": f"Auditoría automatizada finalizada para el commit `{commit_hash[:8] if commit_hash else 'Local'}`",
+                "description": f"🌿 **Rama:** `{branch}`\n📝 **Commit:** {msg} (`{short_hash}`)",
                 "color": color,
                 "fields": [
                     {"name": "Críticas", "value": str(criticas), "inline": True},
