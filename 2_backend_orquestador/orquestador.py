@@ -173,7 +173,7 @@ def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_fin
 
 def ejecutar_pipeline(commit_hash=None):
     if commit_hash is None:
-        commit_hash = os.getenv("COMMIT_HASH", "manual_dev")[:7]
+        commit_hash = (os.getenv("GITHUB_SHA") or os.getenv("COMMIT_HASH") or "manual_dev")[:7]
 
     print("=" * 60)
     print(f"[*] INICIANDO PIPELINE DEVSECOPS - COMMIT: {commit_hash}")

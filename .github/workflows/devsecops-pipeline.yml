@@ -70,6 +70,7 @@ jobs:
       - name: Ejecutar Orquestador y Evaluar Quality Gate
         env:
           DEVSECOPS_WEBHOOK_URL: ${{ secrets.DEVSECOPS_WEBHOOK_URL }}
+          COMMIT_HASH: ${{ github.sha }}
         run: |
           python 2_backend_orquestador/orquestador.py
 
