@@ -14,7 +14,10 @@ DB_CONFIG = {
     "password": "password123"
 }
 
-WEBHOOK_URL = "https://webhook.site/1407f885-217b-466b-874a-ee5681e30e8f"
+DISCORD_WEBHOOK_URL = os.getenv(
+    "DEVSECOPS_WEBHOOK_URL",
+    "https://discord.com/api/webhooks/1552455275150311534/el2wzYIfK-IGJZCxKmNOnTE0zpBVSDtjTY09g6UfBlOj36I6XTC1cVuQj9w9mSZKOBvb"
+)
 
 def ejecutar_escaneo_sast_real(ruta_analizar="app_prueba"):
     """Ejecuta Bandit (SAST) sobre el código fuente."""
@@ -128,27 +131,45 @@ def registrar_alerta_en_bd(cur, id_ejecucion, canal, destinatario):
     except Exception as e:
         print(f"[-] Error al registrar en ALERTA_NOTIFICADA: {e}")
 
-def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, total_fallos, hallazgos):
+def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_final, hallazgos):
+    """Envía notificación formateada a Discord y guarda auditoría en PostgreSQL."""
+    es_bloqueado = estado_final == "Bloqueado"
+    color = 15158332 if es_bloqueado else 3066993  # Rojo (#E74C3C) o Verde (#2ECC71)
+    icono = "🚨" if es_bloqueado else "✅"
+
+    criticas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["crítica", "critica", "critical"])
+    altas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["alta", "high"])
+    medias = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["media", "medium"])
+    bajas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["baja", "low", "informativa"])
+
     payload = {
-        "evento": "PIPELINE_QUALITY_GATE_FAILED",
-        "timestamp": datetime.datetime.now().isoformat(),
-        "id_ejecucion": id_ejecucion,
-        "commit": commit_hash,
-        "alerta": f"ALERTA DEVSECOPS: Despliegue bloqueado. Se detectaron {total_fallos} fallos críticos/altos.",
-        "detalles": [h for h in hallazgos if h["severidad"] in ["Crítica", "Alta"]]
+        "username": "DevSecOps Quality Gate",
+        "avatar_url": "https://cdn-icons-png.flaticon.com/512/9442/9442999.png",
+        "embeds": [
+            {
+                "title": f"{icono} Quality Gate: {estado_final.upper()}",
+                "description": f"Auditoría automatizada finalizada para el commit `{commit_hash[:8] if commit_hash else 'Local'}`",
+                "color": color,
+                "fields": [
+                    {"name": "Críticas", "value": str(criticas), "inline": True},
+                    {"name": "Altas", "value": str(altas), "inline": True},
+                    {"name": "Medias / Bajas", "value": f"{medias} / {bajas}", "inline": True},
+                ],
+                "footer": {"text": f"Ejecución ID: {id_ejecucion} • CI/CD DevSecOps"}
+            }
+        ]
     }
+
     try:
-        if WEBHOOK_URL and "http" in WEBHOOK_URL:
-            requests.post(WEBHOOK_URL, json=payload, headers={"Content-Type": "application/json"}, timeout=5)
-            print("[+] Notificación Webhook enviada al canal de alertas.")
-            
-            # Registro en tabla ALERTA_NOTIFICADA
-            canal = "Webhook HTTP (Webhook.site)"
-            destinatario = "DevSecOps Incident Channel"
-            registrar_alerta_en_bd(cur, id_ejecucion, canal, destinatario)
+        res = requests.post(DISCORD_WEBHOOK_URL, json=payload, headers={"Content-Type": "application/json"}, timeout=6)
+        if res.status_code in [200, 204]:
+            print("[+] Notificación enviada exitosamente al canal de Discord.")
+            registrar_alerta_en_bd(cur, id_ejecucion, "Discord Webhook", "Canal DevSecOps")
             conn.commit()
+        else:
+            print(f"[!] Discord respondió con código: {res.status_code}")
     except Exception as e:
-        print(f"[-] Error al enviar Webhook: {e}")
+        print(f"[-] Error al enviar Webhook a Discord: {e}")
 
 def ejecutar_pipeline(commit_hash=None):
     if commit_hash is None:
@@ -227,10 +248,12 @@ def ejecutar_pipeline(commit_hash=None):
     if contador_criticas_altas > 0:
         estado_final = "Bloqueado"
         print(f"\n[!] Quality Gate: BLOQUEADO ({contador_criticas_altas} fallos severos detectados).")
-        enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, contador_criticas_altas, todos)
     else:
         estado_final = "Aprobado"
         print("\n[V] Quality Gate: APROBADO (0 vulnerabilidades críticas/altas encontradas). Despliegue permitido.")
+
+    # Enviar notificación a Discord y registrar trazabilidad
+    enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_final, todos)
 
     # 5. Cierre
     cur.execute("UPDATE EJECUCION SET estado_final = %s WHERE id_ejecucion = %s;", (estado_final, id_ejecucion))

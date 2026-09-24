@@ -135,5 +135,22 @@ def login():
 
     return jsonify({"error": "Credenciales inválidas"}), 401
 
+@app.route('/login', methods=['GET', 'POST'])
+def login_vulnerable():
+    # Simula un formulario vulnerable a falta de cabeceras CSRF y sin protección X-Frame-Options
+    return """
+    <html>
+        <head><title>Login Inseguro</title></head>
+        <body>
+            <h2>Iniciar Sesión</h2>
+            <form action="/login" method="post">
+                <input type="text" name="user" placeholder="Usuario"><br>
+                <input type="password" name="password" placeholder="Clave"><br>
+                <input type="submit" value="Ingresar">
+            </form>
+        </body>
+    </html>
+    """, 200
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
