@@ -10,7 +10,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend
+  Legend,
+  LabelList
 } from 'recharts';
 import { obtenerGuiaRemediacion } from './remediationKnowledge';
 import './App.css';
@@ -66,9 +67,9 @@ function App() {
   const vulnerabilidadesFiltradas = useMemo(() => {
     return vulnerabilidades.filter(v => {
       const coincideSeveridad = filtroSeveridad === 'TODAS' || v.severidad === filtroSeveridad;
-      const coincideOrigen = filtroOrigen === 'TODOS' || 
+      const coincideOrigen = filtroOrigen === 'TODOS' ||
         v.herramienta_origen.toLowerCase().includes(filtroOrigen.toLowerCase());
-      const coincideTexto = busquedaTexto === '' || 
+      const coincideTexto = busquedaTexto === '' ||
         v.tipo_vulnerabilidad.toLowerCase().includes(busquedaTexto.toLowerCase()) ||
         v.archivo_afectado.toLowerCase().includes(busquedaTexto.toLowerCase());
 
@@ -104,9 +105,28 @@ function App() {
     link.click();
   };
 
-  const pieData = Object.keys(resumen)
-    .filter(key => resumen[key] > 0)
-    .map(key => ({ name: key, value: resumen[key] }));
+  // Orden estricto de seguridad: Crítica -> Alta -> Media -> Baja
+  const severidadesOrdenadas = ['Crítica', 'Alta', 'Media', 'Baja'];
+  const pieData = severidadesOrdenadas
+    .filter(sev => (resumen[sev] || 0) > 0)
+    .map(sev => ({ name: sev, value: resumen[sev] }));
+
+  // Total de hallazgos
+  const totalHallazgos = useMemo(() => {
+    return (resumen.Crítica || 0) + (resumen.Alta || 0) + (resumen.Media || 0) + (resumen.Baja || 0);
+  }, [resumen]);
+
+  // Leyenda en orden estricto (Crítica, Alta, Media, Baja)
+  const legendPayload = useMemo(() => {
+    return severidadesOrdenadas
+      .filter(sev => (resumen[sev] || 0) > 0)
+      .map(sev => ({
+        id: sev,
+        value: sev,
+        type: 'rect',
+        color: SEVERITY_COLORS[sev]
+      }));
+  }, [resumen]);
 
   const toolCount = vulnerabilidades.reduce((acc, curr) => {
     acc[curr.herramienta_origen] = (acc[curr.herramienta_origen] || 0) + 1;
@@ -123,7 +143,7 @@ function App() {
   if (!usuarioAutenticado) {
     return <Login onLoginSuccess={(usr) => setUsuarioAutenticado(usr)} />;
   }
-  
+
   return (
     <div className="dashboard-container">
       <header className="header">
@@ -136,19 +156,28 @@ function App() {
             📥 Exportar CSV
           </button>
           <button className="btn-export btn-pdf" onClick={() => window.print()}>
-          📄 Imprimir / Guardar PDF
-        </button>
-          <button 
+            📄 Imprimir / Guardar PDF
+          </button>
+          <button
             onClick={handleLogout}
             style={{
-              backgroundColor: '#21262d',
-              border: '1px solid #30363d',
-              color: '#c9d1d9',
-              padding: '8px 12px',
+              backgroundColor: 'rgba(248, 81, 73, 0.1)',
+              border: '1px solid rgba(248, 81, 73, 0.35)',
+              color: '#ff7b72',
+              padding: '8px 14px',
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '13px',
-              fontWeight: '500'
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(248, 81, 73, 0.25)';
+              e.currentTarget.style.borderColor = '#f85149';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(248, 81, 73, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(248, 81, 73, 0.35)';
             }}
           >
             Cerrar Sesión ({usuarioAutenticado})
@@ -184,13 +213,43 @@ function App() {
             {pieData.length > 0 ? (
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={5}>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={60}
+                    outerRadius={88}
+                    paddingAngle={4}
+                  >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={SEVERITY_COLORS[entry.name] || '#8884d8'} />
                     ))}
                   </Pie>
+                  {/* Número y etiqueta exactamente centrados en cy="45%" */}
+                  <text
+                    x="50%"
+                    y="41%"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="#f0f6fc"
+                    style={{ fontSize: '24px', fontWeight: 'bold' }}
+                  >
+                    {totalHallazgos}
+                  </text>
+                  <text
+                    x="50%"
+                    y="50%"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="#8b949e"
+                    style={{ fontSize: '10px', fontWeight: '600', letterSpacing: '1px' }}
+                  >
+                    TOTAL
+                  </text>
                   <Tooltip contentStyle={{ backgroundColor: '#161b22', borderColor: '#30363d', color: '#fff' }} />
-                  <Legend />
+                  <Legend verticalAlign="bottom" height={36} payload={legendPayload} />
                 </PieChart>
               </ResponsiveContainer>
             ) : <p className="no-data">Sin datos</p>}
@@ -202,12 +261,23 @@ function App() {
           <div style={{ width: '100%', height: 260 }}>
             {barData.length > 0 ? (
               <ResponsiveContainer>
-                <BarChart data={barData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                <BarChart data={barData} margin={{ top: 25, right: 20, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
                   <XAxis dataKey="herramienta" stroke="#8b949e" />
-                  <YAxis stroke="#8b949e" allowDecimals={false} />
+                  <YAxis stroke="#8b949e" allowDecimals={false} domain={[0, dataMax => Math.ceil(dataMax * 1.2)]} />
                   <Tooltip contentStyle={{ backgroundColor: '#161b22', borderColor: '#30363d', color: '#fff' }} />
-                  <Bar dataKey="total" fill="#58a6ff" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    <LabelList dataKey="total" position="top" fill="#c9d1d9" fontSize={13} offset={8} />
+                    {barData.map((entry, index) => {
+                      let color = '#58a6ff';
+                      if (entry.herramienta?.includes('SAST') || entry.herramienta?.includes('Bandit')) {
+                        color = '#bc8cff';
+                      } else if (entry.herramienta?.includes('DAST') || entry.herramienta?.includes('ZAP')) {
+                        color = '#d29922';
+                      }
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="no-data">Sin datos</p>}
@@ -229,36 +299,57 @@ function App() {
             </select>
           </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Fecha y Hora</th>
-              <th>Commit Hash</th>
-              <th>Decisión Quality Gate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ejecucionesFiltradas.map((e) => (
-              <tr key={e.id_ejecucion}>
-                <td>#{e.id_ejecucion}</td>
-                <td>{e.fecha_inicio}</td>
-                <td><code>{e.commit_hash}</code></td>
-                <td>
-                  <span className={`badge ${e.estado_final === 'Bloqueado' ? 'badge-danger' : e.estado_final === 'Aprobado' ? 'badge-success' : 'badge-warning'}`}>
-                    {e.estado_final}
-                  </span>
-                </td>
+        <div style={{ maxHeight: '330px', overflowY: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha y Hora</th>
+                <th>Commit Hash</th>
+                <th>Decisión Quality Gate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ejecucionesFiltradas.map((e) => (
+                <tr key={e.id_ejecucion}>
+                  <td>#{e.id_ejecucion}</td>
+                  <td>{e.fecha_inicio}</td>
+                  <td>
+                    <code
+                      title={e.commit_hash}
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: '130px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        verticalAlign: 'middle'
+                      }}
+                    >
+                      {e.commit_hash}
+                    </code>
+                  </td>
+                  <td>
+                    <span className={`badge ${e.estado_final === 'Bloqueado' ? 'badge-danger' : e.estado_final === 'Aprobado' ? 'badge-success' : 'badge-warning'}`}>
+                      {e.estado_final}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Hallazgos con disparador de remediación */}
       <section className="card section-card">
         <div className="section-header-flex">
-          <h2>Hallazgos de Seguridad (SAST / SCA / DAST)</h2>
+          <h2>
+            Hallazgos de Seguridad (SAST / SCA / DAST){' '}
+            <span style={{ fontSize: '14px', color: '#8b949e', fontWeight: 'normal' }}>
+              ({vulnerabilidadesFiltradas.length})
+            </span>
+          </h2>
           <span className="info-badge no-print">💡 Haz clic en cualquier fila para ver la guía de mitigación</span>
         </div>
 
@@ -291,34 +382,50 @@ function App() {
           </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Origen</th>
-              <th>Tipo de Vulnerabilidad</th>
-              <th>Severidad</th>
-              <th>Archivo / Recurso Afectado</th>
-              <th className="no-print">Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vulnerabilidadesFiltradas.map((v) => (
-              <tr 
-                key={v.id_vulnerabilidad} 
-                className="interactive-row"
-                onClick={() => setVulnerabilidadSeleccionada(v)}
-              >
-                <td><strong>{v.herramienta_origen}</strong></td>
-                <td>{v.tipo_vulnerabilidad}</td>
-                <td><span className={`tag tag-${v.severidad.toLowerCase()}`}>{v.severidad}</span></td>
-                <td><code>{v.archivo_afectado}</code></td>
-                <td className="no-print">
-                  <button className="btn-remediation">🛡️ Guía de Mitigación</button>
-                </td>
+        <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Origen</th>
+                <th>Tipo de Vulnerabilidad</th>
+                <th>Severidad</th>
+                <th>Archivo / Recurso Afectado</th>
+                <th className="no-print">Acción</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {vulnerabilidadesFiltradas.map((v) => (
+                <tr
+                  key={v.id_vulnerabilidad}
+                  className="interactive-row"
+                  onClick={() => setVulnerabilidadSeleccionada(v)}
+                >
+                  <td><strong>{v.herramienta_origen}</strong></td>
+                  <td>{v.tipo_vulnerabilidad}</td>
+                  <td><span className={`tag tag-${v.severidad.toLowerCase()}`}>{v.severidad}</span></td>
+                  <td><code>{v.archivo_afectado}</code></td>
+                  <td className="no-print">
+                    <button
+                      className="btn-remediation"
+                      style={{
+                        backgroundColor: 'rgba(56, 139, 253, 0.1)',
+                        border: '1px solid rgba(56, 139, 253, 0.4)',
+                        color: '#58a6ff',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}
+                    >
+                      🛡️ Guía de Mitigación
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Modal de Mitigación / Remediación */}

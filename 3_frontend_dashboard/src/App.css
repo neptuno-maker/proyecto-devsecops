@@ -19,9 +19,12 @@ body {
 }
 
 .dashboard-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 30px 20px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px 48px;
+  margin: 0;
 }
 
 .header {
