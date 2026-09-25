@@ -44,15 +44,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r 2_backend_orquestador/requirements.txt
-          pip install bandit pip-audit requests psycopg
-<<<<<<< HEAD
-=======
+          pip install bandit pip-audit requests psycopg pytest
 
       - name: Ejecutar Pruebas Unitarias Backend (pytest - CP-01)
         run: |
-          python -m pip install pytest
           python -m pytest -v test/
->>>>>>> main
 
       - name: Iniciar servicio web para pruebas dinámicas (DAST Target)
         run: |
