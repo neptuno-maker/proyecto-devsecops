@@ -68,13 +68,14 @@ jobs:
           cp zap_report/dast_report.json 2_backend_orquestador/dast_report.json || true
 
       - name: Ejecutar Orquestador y Evaluar Quality Gate
+        working-directory: 2_backend_orquestador
         env:
            DEVSECOPS_WEBHOOK_URL: ${{ secrets.DEVSECOPS_WEBHOOK_URL }}
            COMMIT_HASH: ${{ github.sha }}
            COMMIT_MSG: ${{ github.event.head_commit.message }}
            BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          python 2_backend_orquestador/orquestador.py
+          python orquestador.py
 
   continuous-deployment:
     name: Empaquetado y Despliegue Continuo (CD)
