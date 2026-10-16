@@ -10,6 +10,7 @@ jobs:
   security-analysis:
     name: Escaneo de Seguridad y Quality Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -17,7 +18,7 @@ jobs:
         env:
           POSTGRES_DB: devsecops_db
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password123
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
         ports:
           - 5432:5432
         options: >-
@@ -38,7 +39,7 @@ jobs:
       - name: Inicializar esquema en base de datos
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
-          PGPASSWORD=password123 psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init_db.sql
+          PGPASSWORD="${{ secrets.DB_PASSWORD }}" psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init_db.sql
 
       - name: Instalar dependencias del orquestador
         run: |
@@ -70,6 +71,7 @@ jobs:
         working-directory: 2_backend_orquestador
         env:
            DEVSECOPS_WEBHOOK_URL: ${{ secrets.DEVSECOPS_WEBHOOK_URL }}
+           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
            COMMIT_HASH: ${{ github.sha }}
            COMMIT_MSG: ${{ github.event.head_commit.message }}
            BRANCH_NAME: ${{ github.ref_name }}
@@ -81,6 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: security-analysis
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 15
 
     steps:
       - name: Descargar repositorio (Checkout)
