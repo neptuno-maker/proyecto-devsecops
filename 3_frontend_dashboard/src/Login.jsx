@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function Login({ onLoginSuccess }) {
+function Login({ onLoginSuccess, onSwitchToRegister }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,12 +13,12 @@ function Login({ onLoginSuccess }) {
 
     try {
       const res = await fetch('http://127.0.0.1:5000/api/login', {
-  method: 'POST',
-  headers: { 
-    'Content-Type': 'application/json' 
-  },
-  body: JSON.stringify({ username, password })
-});
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ username, password })
+      });
 
       const data = await res.json();
       if (res.ok) {
@@ -138,6 +138,25 @@ function Login({ onLoginSuccess }) {
             {loading ? 'Validando...' : 'Iniciar Sesión'}
           </button>
         </form>
+
+        {/* Nuevo bloque para redirigir a Registro */}
+        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px' }}>
+          <span style={{ color: '#8b949e' }}>¿No tienes cuenta? </span>
+          <button 
+            onClick={onSwitchToRegister}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: '#58a6ff', 
+              cursor: 'pointer', 
+              padding: 0,
+              textDecoration: 'underline'
+            }}
+          >
+            Regístrate aquí
+          </button>
+        </div>
+
       </div>
     </div>
   );

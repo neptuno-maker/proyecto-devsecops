@@ -16,6 +16,7 @@ import {
 import { obtenerGuiaRemediacion } from './remediationKnowledge';
 import './App.css';
 import Login from './Login';
+import Register from './Register'; // <-- Importamos el nuevo componente
 
 const SEVERITY_COLORS = {
   Crítica: '#f85149',
@@ -40,6 +41,9 @@ function App() {
   const [usuarioAutenticado, setUsuarioAutenticado] = useState(
     sessionStorage.getItem('devsecops_user') || null
   );
+
+  // <-- Nuevo estado para alternar entre Login y Registro
+  const [mostrarRegistro, setMostrarRegistro] = useState(false); 
 
   const handleLogout = () => {
     sessionStorage.removeItem('devsecops_token');
@@ -140,8 +144,17 @@ function App() {
 
   const guiaActual = vulnerabilidadSeleccionada ? obtenerGuiaRemediacion(vulnerabilidadSeleccionada) : null;
 
+  // <-- Lógica para alternar entre Login y Registro cuando no hay sesión iniciada
   if (!usuarioAutenticado) {
-    return <Login onLoginSuccess={(usr) => setUsuarioAutenticado(usr)} />;
+    if (mostrarRegistro) {
+      return <Register onSwitchToLogin={() => setMostrarRegistro(false)} />;
+    }
+    return (
+      <Login 
+        onLoginSuccess={(usr) => setUsuarioAutenticado(usr)} 
+        onSwitchToRegister={() => setMostrarRegistro(true)}
+      />
+    );
   }
 
   return (
