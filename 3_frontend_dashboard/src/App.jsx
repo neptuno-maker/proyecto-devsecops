@@ -16,7 +16,7 @@ import {
 import { obtenerGuiaRemediacion } from './remediationKnowledge';
 import './App.css';
 import Login from './Login';
-import Register from './Register'; // <-- Importamos el nuevo componente
+import Register from './Register';
 
 const SEVERITY_COLORS = {
   Crítica: '#f85149',
@@ -36,14 +36,25 @@ function App() {
   const [busquedaTexto, setBusquedaTexto] = useState('');
   const [filtroEstadoEjecucion, setFiltroEstadoEjecucion] = useState('TODOS');
 
+  // Estados para el filtro de fechas
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+
   // Estado para el Modal de Remediación
   const [vulnerabilidadSeleccionada, setVulnerabilidadSeleccionada] = useState(null);
   const [usuarioAutenticado, setUsuarioAutenticado] = useState(
     sessionStorage.getItem('devsecops_user') || null
   );
 
-  // <-- Nuevo estado para alternar entre Login y Registro
-  const [mostrarRegistro, setMostrarRegistro] = useState(false); 
+  // Estado para alternar entre Login y Registro
+  const [mostrarRegistro, setMostrarRegistro] = useState(false);
+
+  // Estados para Paginación
+  const [paginaEjecuciones, setPaginaEjecuciones] = useState(1);
+  const ejecucionesPorPagina = 5;
+
+  const [paginaHallazgos, setPaginaHallazgos] = useState(1);
+  const hallazgosPorPagina = 10;
 
   const handleLogout = () => {
     sessionStorage.removeItem('devsecops_token');
@@ -83,9 +94,35 @@ function App() {
 
   const ejecucionesFiltradas = useMemo(() => {
     return ejecuciones.filter(e => {
-      return filtroEstadoEjecucion === 'TODOS' || e.estado_final === filtroEstadoEjecucion;
+      const cumpleEstado = filtroEstadoEjecucion === 'TODOS' || e.estado_final === filtroEstadoEjecucion;
+
+      let cumpleFecha = true;
+      if (fechaInicio || fechaFin) {
+        const fechaEjecucion = new Date(e.fecha_inicio);
+        const inicio = fechaInicio ? new Date(`${fechaInicio}T00:00:00`) : null;
+        const fin = fechaFin ? new Date(`${fechaFin}T23:59:59`) : null;
+
+        if (inicio && fechaEjecucion < inicio) cumpleFecha = false;
+        if (fin && fechaEjecucion > fin) cumpleFecha = false;
+      }
+
+      return cumpleEstado && cumpleFecha;
     });
-  }, [ejecuciones, filtroEstadoEjecucion]);
+  }, [ejecuciones, filtroEstadoEjecucion, fechaInicio, fechaFin]);
+
+  // Paginación para Ejecuciones
+  const totalPaginasEjecuciones = Math.ceil(ejecucionesFiltradas.length / ejecucionesPorPagina) || 1;
+  const ejecucionesPaginadas = useMemo(() => {
+    const inicio = (paginaEjecuciones - 1) * ejecucionesPorPagina;
+    return ejecucionesFiltradas.slice(inicio, inicio + ejecucionesPorPagina);
+  }, [ejecucionesFiltradas, paginaEjecuciones, ejecucionesPorPagina]);
+
+  // Paginación para Hallazgos
+  const totalPaginasHallazgos = Math.ceil(vulnerabilidadesFiltradas.length / hallazgosPorPagina) || 1;
+  const hallazgosPaginados = useMemo(() => {
+    const inicio = (paginaHallazgos - 1) * hallazgosPorPagina;
+    return vulnerabilidadesFiltradas.slice(inicio, inicio + hallazgosPorPagina);
+  }, [vulnerabilidadesFiltradas, paginaHallazgos, hallazgosPorPagina]);
 
   const exportarCSV = () => {
     if (vulnerabilidadesFiltradas.length === 0) {
@@ -144,7 +181,6 @@ function App() {
 
   const guiaActual = vulnerabilidadSeleccionada ? obtenerGuiaRemediacion(vulnerabilidadSeleccionada) : null;
 
-  // <-- Lógica para alternar entre Login y Registro cuando no hay sesión iniciada
   if (!usuarioAutenticado) {
     if (mostrarRegistro) {
       return <Register onSwitchToLogin={() => setMostrarRegistro(false)} />;
@@ -240,7 +276,6 @@ function App() {
                       <Cell key={`cell-${index}`} fill={SEVERITY_COLORS[entry.name] || '#8884d8'} />
                     ))}
                   </Pie>
-                  {/* Número y etiqueta exactamente centrados en cy="45%" */}
                   <text
                     x="50%"
                     y="41%"
@@ -302,16 +337,52 @@ function App() {
       <section className="card section-card">
         <div className="section-header-flex">
           <h2>Historial de Ejecución del Pipeline</h2>
-          <div className="filter-group no-print">
-            <label>Estado:</label>
-            <select value={filtroEstadoEjecucion} onChange={(e) => setFiltroEstadoEjecucion(e.target.value)} className="custom-select">
-              <option value="TODOS">Todos</option>
-              <option value="Bloqueado">Bloqueado</option>
-              <option value="Aprobado">Aprobado</option>
-              <option value="En Proceso">En Proceso</option>
-            </select>
+          <div className="filters-toolbar no-print" style={{ margin: 0, padding: 0, background: 'transparent' }}>
+            <div className="filter-group">
+              <label>Desde:</label>
+              <input 
+                type="date" 
+                value={fechaInicio} 
+                onChange={(e) => {
+                  setFechaInicio(e.target.value);
+                  setPaginaEjecuciones(1);
+                }} 
+                className="search-input" 
+                style={{ width: '135px', padding: '6px' }}
+              />
+            </div>
+            <div className="filter-group">
+              <label>Hasta:</label>
+              <input 
+                type="date" 
+                value={fechaFin} 
+                onChange={(e) => {
+                  setFechaFin(e.target.value);
+                  setPaginaEjecuciones(1);
+                }} 
+                className="search-input" 
+                style={{ width: '135px', padding: '6px' }}
+              />
+            </div>
+            <div className="filter-group">
+              <label>Estado:</label>
+              <select 
+                value={filtroEstadoEjecucion} 
+                onChange={(e) => {
+                  setFiltroEstadoEjecucion(e.target.value);
+                  setPaginaEjecuciones(1);
+                }} 
+                className="custom-select"
+              >
+                <option value="TODOS">Todos</option>
+                <option value="Bloqueado">Bloqueado</option>
+                <option value="Aprobado">Aprobado</option>
+                <option value="En Proceso">En Proceso</option>
+              </select>
+            </div>
           </div>
         </div>
+
         <div style={{ maxHeight: '330px', overflowY: 'auto' }}>
           <table>
             <thead>
@@ -323,7 +394,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {ejecucionesFiltradas.map((e) => (
+              {ejecucionesPaginadas.map((e) => (
                 <tr key={e.id_ejecucion}>
                   <td>#{e.id_ejecucion}</td>
                   <td>{e.fecha_inicio}</td>
@@ -352,6 +423,43 @@ function App() {
             </tbody>
           </table>
         </div>
+
+        {/* Controles de Paginación Historial */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '4px 8px' }}>
+          <button
+            onClick={() => setPaginaEjecuciones(p => Math.max(p - 1, 1))}
+            disabled={paginaEjecuciones === 1}
+            style={{
+              backgroundColor: paginaEjecuciones === 1 ? '#21262d' : '#238636',
+              color: paginaEjecuciones === 1 ? '#484f58' : '#ffffff',
+              border: '1px solid #30363d',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              cursor: paginaEjecuciones === 1 ? 'not-allowed' : 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ◀ Anterior
+          </button>
+          <span style={{ color: '#8b949e', fontSize: '13px' }}>
+            Página <strong style={{ color: '#c9d1d9' }}>{paginaEjecuciones}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasEjecuciones}</strong>
+          </span>
+          <button
+            onClick={() => setPaginaEjecuciones(p => Math.min(p + 1, totalPaginasEjecuciones))}
+            disabled={paginaEjecuciones >= totalPaginasEjecuciones}
+            style={{
+              backgroundColor: paginaEjecuciones >= totalPaginasEjecuciones ? '#21262d' : '#238636',
+              color: paginaEjecuciones >= totalPaginasEjecuciones ? '#484f58' : '#ffffff',
+              border: '1px solid #30363d',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              cursor: paginaEjecuciones >= totalPaginasEjecuciones ? 'not-allowed' : 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Siguiente ▶
+          </button>
+        </div>
       </section>
 
       {/* Hallazgos con disparador de remediación */}
@@ -371,12 +479,22 @@ function App() {
             type="text"
             placeholder="Buscar por archivo, función o tipo..."
             value={busquedaTexto}
-            onChange={(e) => setBusquedaTexto(e.target.value)}
+            onChange={(e) => {
+              setBusquedaTexto(e.target.value);
+              setPaginaHallazgos(1);
+            }}
             className="search-input"
           />
           <div className="filter-group">
             <label>Severidad:</label>
-            <select value={filtroSeveridad} onChange={(e) => setFiltroSeveridad(e.target.value)} className="custom-select">
+            <select 
+              value={filtroSeveridad} 
+              onChange={(e) => {
+                setFiltroSeveridad(e.target.value);
+                setPaginaHallazgos(1);
+              }} 
+              className="custom-select"
+            >
               <option value="TODAS">Todas</option>
               <option value="Crítica">Crítica</option>
               <option value="Alta">Alta</option>
@@ -386,7 +504,14 @@ function App() {
           </div>
           <div className="filter-group">
             <label>Origen:</label>
-            <select value={filtroOrigen} onChange={(e) => setFiltroOrigen(e.target.value)} className="custom-select">
+            <select 
+              value={filtroOrigen} 
+              onChange={(e) => {
+                setFiltroOrigen(e.target.value);
+                setPaginaHallazgos(1);
+              }} 
+              className="custom-select"
+            >
               <option value="TODOS">Todos</option>
               <option value="SAST">SAST (Bandit)</option>
               <option value="SCA">SCA (pip-audit)</option>
@@ -407,7 +532,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {vulnerabilidadesFiltradas.map((v) => (
+              {hallazgosPaginados.map((v) => (
                 <tr
                   key={v.id_vulnerabilidad}
                   className="interactive-row"
@@ -438,6 +563,43 @@ function App() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Controles de Paginación Hallazgos */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '4px 8px' }}>
+          <button
+            onClick={() => setPaginaHallazgos(p => Math.max(p - 1, 1))}
+            disabled={paginaHallazgos === 1}
+            style={{
+              backgroundColor: paginaHallazgos === 1 ? '#21262d' : '#1f6feb',
+              color: paginaHallazgos === 1 ? '#484f58' : '#ffffff',
+              border: '1px solid #30363d',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              cursor: paginaHallazgos === 1 ? 'not-allowed' : 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            ◀ Anterior
+          </button>
+          <span style={{ color: '#8b949e', fontSize: '13px' }}>
+            Página <strong style={{ color: '#c9d1d9' }}>{paginaHallazgos}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasHallazgos}</strong>
+          </span>
+          <button
+            onClick={() => setPaginaHallazgos(p => Math.min(p + 1, totalPaginasHallazgos))}
+            disabled={paginaHallazgos >= totalPaginasHallazgos}
+            style={{
+              backgroundColor: paginaHallazgos >= totalPaginasHallazgos ? '#21262d' : '#1f6feb',
+              color: paginaHallazgos >= totalPaginasHallazgos ? '#484f58' : '#ffffff',
+              border: '1px solid #30363d',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              cursor: paginaHallazgos >= totalPaginasHallazgos ? 'not-allowed' : 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Siguiente ▶
+          </button>
         </div>
       </section>
 
