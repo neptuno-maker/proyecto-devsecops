@@ -424,8 +424,11 @@ function App() {
           </table>
         </div>
 
-        {/* Controles de Paginación Historial */}
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '4px 8px' }}>
+        {/* Controles de Paginación Historial alineados a la derecha */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '14px', padding: '4px 8px' }}>
+          <span style={{ color: '#8b949e', fontSize: '13px' }}>
+            Página <strong style={{ color: '#c9d1d9' }}>{paginaEjecuciones}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasEjecuciones}</strong>
+          </span>
           <button
             onClick={() => setPaginaEjecuciones(p => Math.max(p - 1, 1))}
             disabled={paginaEjecuciones === 1}
@@ -441,9 +444,6 @@ function App() {
           >
             ◀ Anterior
           </button>
-          <span style={{ color: '#8b949e', fontSize: '13px' }}>
-            Página <strong style={{ color: '#c9d1d9' }}>{paginaEjecuciones}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasEjecuciones}</strong>
-          </span>
           <button
             onClick={() => setPaginaEjecuciones(p => Math.min(p + 1, totalPaginasEjecuciones))}
             disabled={paginaEjecuciones >= totalPaginasEjecuciones}
@@ -565,8 +565,11 @@ function App() {
           </table>
         </div>
 
-        {/* Controles de Paginación Hallazgos */}
-        <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '4px 8px' }}>
+        {/* Controles de Paginación Hallazgos alineados a la derecha */}
+        <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '14px', padding: '4px 8px' }}>
+          <span style={{ color: '#8b949e', fontSize: '13px' }}>
+            Página <strong style={{ color: '#c9d1d9' }}>{paginaHallazgos}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasHallazgos}</strong>
+          </span>
           <button
             onClick={() => setPaginaHallazgos(p => Math.max(p - 1, 1))}
             disabled={paginaHallazgos === 1}
@@ -582,9 +585,6 @@ function App() {
           >
             ◀ Anterior
           </button>
-          <span style={{ color: '#8b949e', fontSize: '13px' }}>
-            Página <strong style={{ color: '#c9d1d9' }}>{paginaHallazgos}</strong> de <strong style={{ color: '#c9d1d9' }}>{totalPaginasHallazgos}</strong>
-          </span>
           <button
             onClick={() => setPaginaHallazgos(p => Math.min(p + 1, totalPaginasHallazgos))}
             disabled={paginaHallazgos >= totalPaginasHallazgos}
