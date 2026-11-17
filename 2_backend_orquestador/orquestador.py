@@ -14,12 +14,9 @@ DB_CONFIG = {
     "password": "password123"
 }
 
-DISCORD_WEBHOOK_URL = os.getenv(
-    "DEVSECOPS_WEBHOOK_URL",
-    "https://discord.com/api/webhooks/1552455275150311534/el2wzYIfK-IGJZCxKmNOnTE0zpBVSDtjTY09g6UfBlOj36I6XTC1cVuQj9w9mSZKOBvb"
-)
+DISCORD_WEBHOOK_URL = os.getenv("DEVSECOPS_WEBHOOK_URL")
 
-def ejecutar_escaneo_sast_real(ruta_analizar="app_prueba"):
+def ejecutar_escaneo_sast_real(ruta_analizar="api.py"):
     """Ejecuta Bandit (SAST) sobre el código fuente."""
     print(f"[*] Ejecutando análisis SAST (Bandit) sobre: {ruta_analizar}...")
     try:
@@ -228,9 +225,9 @@ def ejecutar_pipeline(commit_hash=None):
     id_ejecucion = cur.fetchone()[0]
     conn.commit()
 
-    # 2. Ejecutar escaneos (SAST + SCA + DAST real)
-    sast_hallazgos = ejecutar_escaneo_sast_real("app_prueba")
-    sca_hallazgos = ejecutar_escaneo_sca_real("app_prueba/requirements_vulnerable.txt")
+        # 2. Ejecutar escaneos (SAST + SCA + DAST real)
+    sast_hallazgos = ejecutar_escaneo_sast_real("api.py")
+    sca_hallazgos = ejecutar_escaneo_sca_real("requirements.txt")
     dast_hallazgos = leer_reporte_dast_real("dast_report.json")
 
     todos = sast_hallazgos + sca_hallazgos + dast_hallazgos
