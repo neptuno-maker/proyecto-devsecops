@@ -45,7 +45,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r 2_backend_orquestador/requirements.txt
-          pip install bandit pip-audit requests psycopg pytest
+          pip install bandit pip-audit requests psycopg pytest flask flask-cors pyjwt
 
       - name: Ejecutar Pruebas Unitarias Backend (pytest - CP-01)
         run: |
