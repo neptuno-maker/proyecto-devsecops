@@ -217,5 +217,10 @@ def login_vulnerable():
     </html>
     """, 200
 
+import subprocess
+
+def prueba_insegura_demo():
+    subprocess.Popen("echo test_vulnerabilidad", shell=True)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
