@@ -137,11 +137,31 @@ def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_fin
     criticas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["crítica", "critica", "critical"])
     altas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["alta", "high"])
     medias = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["media", "medium"])
-    
     bajas = sum(1 for v in hallazgos if v.get("severidad", "").lower() in ["baja", "low", "informativa"])
+    
     branch = os.getenv("BRANCH_NAME", "main")
     msg = os.getenv("COMMIT_MSG", "Sin mensaje").split("\n")[0]
     short_hash = commit_hash[:7] if commit_hash else "Local"
+
+    fields = [
+        {"name": "Críticas", "value": str(criticas), "inline": True},
+        {"name": "Altas", "value": str(altas), "inline": True},
+        {"name": "Medias / Bajas", "value": f"{medias} / {bajas}", "inline": True},
+    ]
+
+    if es_bloqueado:
+        bloqueantes = [
+            f"`{v.get('archivo', 'N/A')}` — **{v.get('severidad')}** ({v.get('tipo', '').split(':')[0]})"
+            for v in hallazgos
+            if v.get("severidad", "").lower() in ["crítica", "critica", "critical", "alta", "high"]
+        ]
+        if bloqueantes:
+            detalle = "\n".join(dict.fromkeys(bloqueantes[:5]))
+            fields.append({
+                "name": "📂 Archivo / Recurso Afectado",
+                "value": detalle,
+                "inline": False
+            })
 
     payload = {
         "username": "DevSecOps Quality Gate",
@@ -151,11 +171,7 @@ def enviar_notificacion_webhook(cur, conn, id_ejecucion, commit_hash, estado_fin
                 "title": f"{icono} Quality Gate: {estado_final.upper()}",
                 "description": f"🌿 **Rama:** `{branch}`\n📝 **Commit:** {msg} (`{short_hash}`)",
                 "color": color,
-                "fields": [
-                    {"name": "Críticas", "value": str(criticas), "inline": True},
-                    {"name": "Altas", "value": str(altas), "inline": True},
-                    {"name": "Medias / Bajas", "value": f"{medias} / {bajas}", "inline": True},
-                ],
+                "fields": fields,
                 "footer": {"text": f"Ejecución ID: {id_ejecucion} • CI/CD DevSecOps"}
             }
         ]
@@ -225,7 +241,7 @@ def ejecutar_pipeline(commit_hash=None):
     id_ejecucion = cur.fetchone()[0]
     conn.commit()
 
-        # 2. Ejecutar escaneos (SAST + SCA + DAST real)
+    # 2. Ejecutar escaneos (SAST + SCA + DAST real)
     sast_hallazgos = ejecutar_escaneo_sast_real("api.py")
     sca_hallazgos = ejecutar_escaneo_sca_real("requirements.txt")
     dast_hallazgos = leer_reporte_dast_real("dast_report.json")
@@ -268,5 +284,3 @@ def ejecutar_pipeline(commit_hash=None):
 
 if __name__ == "__main__":
     ejecutar_pipeline()
-    
-# Disparar evaluacion de bloqueo
