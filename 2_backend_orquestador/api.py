@@ -220,4 +220,4 @@ def login_vulnerable():
 
 if __name__ == "__main__":
     import os
-    app.run(host=os.getenv("API_HOST", "0.0.0.0"), port=5000, debug=False)
+    app.run(host=os.getenv("API_HOST", "127.0.0.1"), port=5000, debug=False)
