@@ -485,7 +485,19 @@ if (tipo.includes('try, except') || tipo.includes('pass')) {
               {ejecucionesPaginadas.map((e) => (
                 <tr key={e.id_ejecucion}>
                   <td>#{e.id_ejecucion}</td>
-                  <td>{e.fecha_inicio}</td>
+                  <td>
+  {e.fecha_inicio
+    ? new Date(e.fecha_inicio.replace(' ', 'T') + 'Z').toLocaleString('es-CL', {
+        timeZone: 'America/Santiago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+    : ''}
+</td>
                   <td>
                     <code
                       title={e.commit_hash}
