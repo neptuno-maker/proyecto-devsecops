@@ -12,21 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: devsecops_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Descargar repositorio (Checkout)
         uses: actions/checkout@v4
@@ -36,11 +21,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Inicializar esquema en base de datos
-        run: |
-          sudo apt-get update && sudo apt-get install -y postgresql-client
-          PGPASSWORD="${{ secrets.DB_PASSWORD }}" psql -h localhost -U postgres -d devsecops_db -f 1_infraestructura/init_db.sql
-
       - name: Instalar dependencias del orquestador
         run: |
           python -m pip install --upgrade pip
@@ -48,10 +28,22 @@ jobs:
           pip install bandit pip-audit requests psycopg pytest flask flask-cors pyjwt
 
       - name: Ejecutar Pruebas Unitarias Backend (pytest - CP-01)
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SSLMODE: require
         run: |
           python -m pytest -v test/
 
       - name: Iniciar servicio web para pruebas dinámicas (DAST Target)
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SSLMODE: require
         run: |
           python 2_backend_orquestador/api.py &
           timeout 30 bash -c 'until echo > /dev/tcp/127.0.0.1/5000; do sleep 1; done'
@@ -70,11 +62,15 @@ jobs:
       - name: Ejecutar Orquestador y Evaluar Quality Gate
         working-directory: 2_backend_orquestador
         env:
-           DEVSECOPS_WEBHOOK_URL: ${{ secrets.DEVSECOPS_WEBHOOK_URL }}
-           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-           COMMIT_HASH: ${{ github.sha }}
-           COMMIT_MSG: ${{ github.event.head_commit.message }}
-           BRANCH_NAME: ${{ github.ref_name }}
+          DEVSECOPS_WEBHOOK_URL: ${{ secrets.DEVSECOPS_WEBHOOK_URL }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SSLMODE: require
+          COMMIT_HASH: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
           python orquestador.py
 

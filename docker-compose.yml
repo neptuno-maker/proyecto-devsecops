@@ -24,13 +24,12 @@ services:
     ports:
       - "5000:5000"
     environment:
-      DB_HOST: database
-      DB_USER: postgres
-      DB_PASSWORD: password123
-      DB_NAME: devsecops_db
+      DB_HOST: ep-floral-thunder-bcdbxqoi-pooler.c-16.us-east-1.aws.neon.tech
+      DB_USER: neondb_owner
+      DB_PASSWORD: npg_nvs2NQJgCa6D
+      DB_NAME: neondb
       DB_PORT: 5432
-    depends_on:
-      - database
+      DB_SSLMODE: require
     networks:
       - devsecops-network
 

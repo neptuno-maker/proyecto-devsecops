@@ -14,7 +14,8 @@ DB_CONFIG = {
     "port": int(os.getenv("DB_PORT", 5432)),
     "dbname": os.getenv("DB_NAME", "devsecops_db"),
     "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", "password123")
+    "password": os.getenv("DB_PASSWORD", "password123"),
+    "sslmode": os.getenv("DB_SSLMODE", "prefer")
 }
 
 JWT_SECRET = "devsecops_super_secret_key_2026"

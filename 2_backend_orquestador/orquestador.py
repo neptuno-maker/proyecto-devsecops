@@ -7,11 +7,12 @@ import os
 import sys
 
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "devsecops_db",
-    "user": "postgres",
-    "password": "password123"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "dbname": os.getenv("DB_NAME", "devsecops_db"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "password123"),
+    "sslmode": os.getenv("DB_SSLMODE", "prefer")
 }
 
 DISCORD_WEBHOOK_URL = os.getenv("DEVSECOPS_WEBHOOK_URL")
