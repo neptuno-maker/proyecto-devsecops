@@ -179,7 +179,95 @@ function App() {
     total: toolCount[tool]
   }));
 
-  const guiaActual = vulnerabilidadSeleccionada ? obtenerGuiaRemediacion(vulnerabilidadSeleccionada) : null;
+  const guiaActual = useMemo(() => {
+  if (!vulnerabilidadSeleccionada) return null;
+
+  const tipo = (vulnerabilidadSeleccionada.tipo_vulnerabilidad || '').toLowerCase();
+
+  if (tipo.includes('md5') || tipo.includes('weak') || tipo.includes('hash')) {
+    return {
+      cwe: 'CWE-328: Use of Weak Hash',
+      descripcion: 'El algoritmo MD5 es criptográficamente inseguro y vulnerable a ataques de colisión.',
+      pasos: [
+        'Reemplazar hashlib.md5() por algoritmos resistentes como SHA-256 o SHA-512.',
+        'Para almacenamiento de contraseñas, emplear funciones con salt como werkzeug.security o bcrypt.'
+      ],
+      codigoSugerido: `# Inseguro:\nimport hashlib\nhash_val = hashlib.md5(data.encode()).hexdigest()\n\n# Seguro:\nimport hashlib\nhash_val = hashlib.sha256(data.encode()).hexdigest()`
+    };
+  }
+
+  if (tipo.includes('sql')) {
+    return {
+      cwe: 'CWE-89: SQL Injection',
+      descripcion: 'Concatenar variables directamente en consultas SQL permite a un atacante alterar la consulta y extraer o modificar datos.',
+      pasos: [
+        'Utilizar consultas parametrizadas con placeholders (%s) en psycopg.',
+        'Evitar f-strings o concatenación (+) al construir sentencias SQL.'
+      ],
+      codigoSugerido: `# Inseguro:\ncur.execute(f"SELECT * FROM USUARIO WHERE username = '{user}'")\n\n# Seguro:\ncur.execute("SELECT * FROM USUARIO WHERE username = %s", (user,))`
+    };
+  }
+
+  if (tipo.includes('cve-') || tipo.includes('werkzeug') || tipo.includes('jinja2')) {
+    return {
+      cwe: 'CWE-1104: Use of Unmaintained Third Party Components',
+      descripcion: 'La dependencia declarada contiene una vulnerabilidad pública conocida (CVE) detectada por pip-audit.',
+      pasos: [
+        'Actualizar la versión de la librería en requirements.txt a una versión parcheada.',
+        'Reconstruir la imagen Docker y volver a ejecutar el escaneo SCA.'
+      ],
+      codigoSugerido: `# Actualizar en 2_backend_orquestador/requirements.txt:\nwerkzeug>=3.0.6\njinja2>=3.1.6`
+    };
+  }
+
+  if (tipo.includes('0.0.0.0') || tipo.includes('binding')) {
+    return {
+      cwe: 'CWE-605: Multiple Binds to the Same Port',
+      descripcion: 'Exponer la aplicación en todas las interfaces de red (0.0.0.0) amplía innecesariamente la superficie de ataque.',
+      pasos: [
+        'En desarrollo local, enlazar el servidor únicamente a 127.0.0.1.',
+        'En contenedores o producción, restringir el acceso mediante firewall y proxy inverso.'
+      ],
+      codigoSugerido: `# Desarrollo local seguro:\nif __name__ == "__main__":\n    app.run(host="127.0.0.1", port=5000, debug=False)`
+    };
+  }
+if (tipo.includes('try, except') || tipo.includes('pass')) {
+      return {
+        cwe: 'CWE-703: Improper Check or Handling of Exceptional Conditions',
+        descripcion: 'Silenciar excepciones con bloques try/except/pass oculta errores críticos y dificulta la detección de fallos o intrusiones.',
+        pasos: [
+          'Capturar excepciones específicas (por ejemplo, ValueError o psycopg.Error) en lugar de un except genérico.',
+          'Registrar el error mediante logging o print antes de continuar la ejecución.'
+        ],
+        codigoSugerido: `# Inseguro:\ntry:\n    procesar_datos()\nexcept Exception:\n    pass\n\n# Seguro:\nimport logging\ntry:\n    procesar_datos()\nexcept ValueError as e:\n    logging.error(f"Error al procesar datos: {e}")`
+      };
+    }
+
+    if (tipo.includes('assert')) {
+      return {
+        cwe: 'CWE-617: Reachable Assertion',
+        descripcion: 'Las sentencias assert se eliminan cuando Python se ejecuta en modo optimizado (-O), anulando validaciones de seguridad.',
+        pasos: [
+          'Reemplazar assert por condicionales explícitos (if / raise) en código de aplicación.',
+          'Reservar el uso de assert únicamente para pruebas unitarias en test/.'
+        ],
+        codigoSugerido: `# Inseguro:\nassert usuario.es_admin, "Acceso denegado"\n\n# Seguro:\nif not usuario.es_admin:\n    raise PermissionError("Acceso denegado")`
+      };
+    }
+
+    if (tipo.includes('cross-domain') || tipo.includes('cors')) {
+      return {
+        cwe: 'CWE-942: Permissive Cross-domain Policy with Untrusted Domains',
+        descripcion: 'Una política CORS demasiado permisiva permite que sitios externos realicen peticiones no autorizadas a la API.',
+        pasos: [
+          'Restringir origins en Flask-CORS únicamente a los dominios confiables del frontend.',
+          'Evitar el uso de comodines (*) junto con credentials en producción.'
+        ],
+        codigoSugerido: `# Inseguro:\nCORS(app, resources={r"/*": {"origins": "*"}})\n\n# Seguro:\nCORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173"]}})`
+      };
+    }
+  return obtenerGuiaRemediacion(vulnerabilidadSeleccionada);
+}, [vulnerabilidadSeleccionada]);
 
   if (!usuarioAutenticado) {
     if (mostrarRegistro) {

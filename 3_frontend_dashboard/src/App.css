@@ -141,6 +141,7 @@ code {
 .tag-alta { background-color: var(--alta); color: #fff; }
 .tag-media { background-color: var(--media); color: #000; }
 .tag-baja { background-color: var(--baja); color: #000; }
+.tag-informativa { background-color: #8b949e; color: #0d1117; }
 
 .charts-grid {
   display: grid;
